@@ -1,0 +1,3 @@
+app_name = "review"
+workspace_root = "workspace"
+review_bucket = "workspace/review"

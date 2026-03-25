@@ -1,0 +1,3 @@
+app_name = "capture"
+workspace_root = "workspace"
+input_mode = "manual"

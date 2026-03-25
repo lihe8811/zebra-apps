@@ -1,0 +1,3 @@
+app_name = "summarize"
+workspace_root = "workspace"
+default_target_status = "done"

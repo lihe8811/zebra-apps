@@ -1,0 +1,17 @@
+[workspace]
+members = [
+  "crates/core",
+  "crates/apps/capture",
+  "crates/apps/summarize",
+  "crates/apps/review",
+  "crates/ops",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+license = "MIT"
+authors = ["zebra"]
+
+[workspace.dependencies]

@@ -1,0 +1,9 @@
+[package]
+name = "capture"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+zebra_core = { package = "core", path = "../../../crates/core" }

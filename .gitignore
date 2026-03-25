@@ -1,0 +1,15 @@
+/target
+/.DS_Store
+/.idea
+/.vscode
+/.env
+workspace/logs/*
+!workspace/logs/.gitkeep
+workspace/processing/*
+!workspace/processing/.gitkeep
+workspace/done/*
+!workspace/done/.gitkeep
+workspace/review/*
+!workspace/review/.gitkeep
+workspace/archive/*
+!workspace/archive/.gitkeep

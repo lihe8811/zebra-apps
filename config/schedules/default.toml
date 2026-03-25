@@ -1,0 +1,11 @@
+[jobs.capture]
+cron = "0 8 * * *"
+command = "cargo run -p capture"
+
+[jobs.summarize]
+cron = "0 * * * *"
+command = "cargo run -p summarize"
+
+[jobs.review]
+cron = "30 * * * *"
+command = "cargo run -p review"
