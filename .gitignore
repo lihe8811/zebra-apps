@@ -1,8 +1,13 @@
+# Local editor and environment files
+.DS_Store
+.idea
+.vscode
+.env
+
+# Rust build output
 /target
-/.DS_Store
-/.idea
-/.vscode
-/.env
+
+# Generated runtime state
 workspace/logs/*
 !workspace/logs/.gitkeep
 workspace/processing/*
@@ -13,3 +18,7 @@ workspace/review/*
 !workspace/review/.gitkeep
 workspace/archive/*
 !workspace/archive/.gitkeep
+
+# Local Gmail OAuth secrets and token cache
+config/gmail/oauth_client_secret.json
+config/gmail/oauth_tokens.json

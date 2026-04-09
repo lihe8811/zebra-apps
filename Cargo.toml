@@ -2,6 +2,7 @@
 members = [
   "crates/core",
   "crates/apps/capture",
+  "crates/apps/gmail_ai_news",
   "crates/apps/summarize",
   "crates/apps/review",
   "crates/ops",

@@ -1,0 +1,12 @@
+[package]
+name = "gmail_ai_news"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["clock"] }
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread"] }
+zebra_core = { package = "core", path = "../../../crates/core" }

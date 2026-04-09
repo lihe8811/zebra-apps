@@ -1,4 +1,5 @@
 use crate::workspace::DocumentStatus;
+use chrono::Utc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentFrontMatter {
@@ -37,5 +38,49 @@ impl WorkflowDocument {
         }
 
         Ok(())
+    }
+
+    pub fn summary_output(
+        source_app: &str,
+        message_id: &str,
+        subject: &str,
+        model: &str,
+        summary: &str,
+        source_body: &str,
+    ) -> String {
+        let timestamp = Utc::now().to_rfc3339();
+        let escaped_subject = if subject.trim().is_empty() {
+            "Untitled Email"
+        } else {
+            subject.trim()
+        };
+
+        format!(
+            concat!(
+                "---\n",
+                "id: {message_id}\n",
+                "type: gmail_summary\n",
+                "status: done\n",
+                "source_app: {source_app}\n",
+                "target_app: none\n",
+                "created_at: {timestamp}\n",
+                "updated_at: {timestamp}\n",
+                "model: {model}\n",
+                "run_id: {message_id}\n",
+                "---\n\n",
+                "# {subject}\n\n",
+                "## Summary\n\n",
+                "{summary}\n\n",
+                "## Source\n\n",
+                "{source_body}\n"
+            ),
+            message_id = message_id,
+            source_app = source_app,
+            timestamp = timestamp,
+            model = model,
+            subject = escaped_subject,
+            summary = summary.trim(),
+            source_body = source_body.trim(),
+        )
     }
 }

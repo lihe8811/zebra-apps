@@ -1,3 +1,7 @@
+[jobs.gmail_ai_news]
+cron = "0 */6 * * *"
+command = "cargo run -p gmail_ai_news"
+
 [jobs.capture]
 cron = "0 8 * * *"
 command = "cargo run -p capture"
