@@ -61,16 +61,12 @@ async fn run(config_path: &Path) -> Result<()> {
         )
     );
 
-    let prompt = config.load_prompt()?;
+    let sources = load_processing_sources(&config)?;
     println!(
         "{}",
         format_step_log(
-            "prompt",
-            &format!(
-                "loaded prompt from {} ({} chars)",
-                config.prompt_file.display(),
-                prompt.chars().count()
-            )
+            "config",
+            &format!("loaded {} processing sources", sources.len())
         )
     );
     println!("{}", format_step_log("gmail_auth", "requesting Gmail access token"));
@@ -97,103 +93,161 @@ async fn run(config_path: &Path) -> Result<()> {
         format_step_log("openai", &format!("initialized OpenAI client with model {}", config.model))
     );
 
-    println!(
-        "{}",
-        format_step_log("gmail_query", &format!("searching Gmail with query {}", config.gmail_query))
-    );
-    let messages = gmail.list_messages(&config.gmail_query).await?;
-    println!(
-        "{}",
-        format_step_log(
-            "gmail_query",
-            &format!("found {} matching messages", messages.len())
-        )
-    );
-
-    if messages.is_empty() {
+    let mut processed_messages = 0usize;
+    for source in &sources {
         println!(
             "{}",
-            format_step_log("complete", "no matching messages to process")
+            format_step_log(
+                "gmail_query",
+                &format!("source {} searching Gmail with query {}", source.name, source.gmail_query)
+            )
         );
-        return Ok(());
+        let messages = gmail.list_messages(&source.gmail_query).await?;
+        println!(
+            "{}",
+            format_step_log(
+                "gmail_query",
+                &format!(
+                    "source {} found {} matching messages",
+                    source.name,
+                    messages.len()
+                )
+            )
+        );
+
+        let total = messages.len();
+        for (index, message_ref) in messages.into_iter().enumerate() {
+            println!(
+                "{}",
+                format_step_log(
+                    "gmail_fetch",
+                    &format!(
+                        "source {} fetching message {} ({}/{})",
+                        source.name,
+                        message_ref.id,
+                        index + 1,
+                        total
+                    )
+                )
+            );
+            let message = gmail.get_message(&message_ref.id).await?;
+            let body = extract_message_text(&message)?;
+            let subject = message
+                .payload
+                .as_ref()
+                .and_then(|payload| header_value(&payload.headers, "Subject"))
+                .unwrap_or("Untitled Email");
+            println!(
+                "{}",
+                format_message_progress(index + 1, total, &message.id, subject, &source.name)
+            );
+            println!(
+                "{}",
+                format_step_log(
+                    "gmail_fetch",
+                    &format!(
+                        "source {} extracted body for {} ({} chars)",
+                        source.name,
+                        message.id,
+                        body.chars().count()
+                    )
+                )
+            );
+
+            println!(
+                "{}",
+                format_step_log(
+                    "summarize",
+                    &format!("source {} requesting summary for {}", source.name, message.id)
+                )
+            );
+            let summary = llm
+                .execute(&ProviderRequest {
+                    model: config.model.clone(),
+                    instructions: source.prompt.clone(),
+                    input: body.clone(),
+                })
+                .await?;
+            println!(
+                "{}",
+                format_step_log(
+                    "summarize",
+                    &format!(
+                        "source {} received summary for {} ({} chars)",
+                        source.name,
+                        message.id,
+                        summary.content.chars().count()
+                    )
+                )
+            );
+
+            let output = WorkflowDocument::summary_output(
+                &config.app_name,
+                &message.id,
+                subject,
+                &config.model,
+                &summary.content,
+                &body,
+            );
+            let output_path = output_path(&config.done_dir, &message)?;
+            println!(
+                "{}",
+                format_step_log("write", &format!("writing {}", output_path.display()))
+            );
+            fs::write(&output_path, output)
+                .with_context(|| format!("failed to write {}", output_path.display()))?;
+            println!(
+                "{}",
+                format_step_log("archive", &format!("archiving Gmail message {}", message.id))
+            );
+            gmail.archive_message(&message.id).await?;
+            println!(
+                "{}",
+                format_step_log("archive", &format!("archived Gmail message {}", message.id))
+            );
+            processed_messages += 1;
+        }
     }
 
-    let total = messages.len();
-    for (index, message_ref) in messages.into_iter().enumerate() {
-        println!(
-            "{}",
-            format_step_log(
-                "gmail_fetch",
-                &format!("fetching message {} ({}/{})", message_ref.id, index + 1, total)
-            )
-        );
-        let message = gmail.get_message(&message_ref.id).await?;
-        let body = extract_message_text(&message)?;
-        let subject = message
-            .payload
-            .as_ref()
-            .and_then(|payload| header_value(&payload.headers, "Subject"))
-            .unwrap_or("Untitled Email");
-        println!("{}", format_message_progress(index + 1, total, &message.id, subject));
-        println!(
-            "{}",
-            format_step_log(
-                "gmail_fetch",
-                &format!("extracted body for {} ({} chars)", message.id, body.chars().count())
-            )
-        );
-
-        println!(
-            "{}",
-            format_step_log("summarize", &format!("requesting summary for {}", message.id))
-        );
-        let summary = llm
-            .execute(&ProviderRequest {
-                model: config.model.clone(),
-                instructions: prompt.clone(),
-                input: body.clone(),
-            })
-            .await?;
-        println!(
-            "{}",
-            format_step_log(
-                "summarize",
-                &format!("received summary for {} ({} chars)", message.id, summary.content.chars().count())
-            )
-        );
-
-        let output = WorkflowDocument::summary_output(
-            &config.app_name,
-            &message.id,
-            subject,
-            &config.model,
-            &summary.content,
-            &body,
-        );
-        let output_path = output_path(&config.done_dir, &message)?;
-        println!(
-            "{}",
-            format_step_log("write", &format!("writing {}", output_path.display()))
-        );
-        fs::write(&output_path, output)
-            .with_context(|| format!("failed to write {}", output_path.display()))?;
-        println!(
-            "{}",
-            format_step_log("archive", &format!("archiving Gmail message {}", message.id))
-        );
-        gmail.archive_message(&message.id).await?;
-        println!(
-            "{}",
-            format_step_log("archive", &format!("archived Gmail message {}", message.id))
-        );
-    }
-
     println!(
         "{}",
-        format_step_log("complete", &format!("processed {} messages", total))
+        format_step_log("complete", &format!("processed {} messages", processed_messages))
     );
 
     Ok(())
+}
+
+struct ProcessingSource {
+    name: String,
+    gmail_query: String,
+    prompt: String,
+}
+
+fn load_processing_sources(config: &GmailAiNewsConfig) -> Result<Vec<ProcessingSource>> {
+    config
+        .sources
+        .iter()
+        .map(|source| {
+            let prompt = config.load_prompt(source)?;
+            println!(
+                "{}",
+                format_step_log(
+                    "prompt",
+                    &format!(
+                        "loaded source {} prompt from {} ({} chars)",
+                        source.name,
+                        source.prompt_file.display(),
+                        prompt.chars().count()
+                    )
+                )
+            );
+            Ok(ProcessingSource {
+                name: source.name.clone(),
+                gmail_query: source.gmail_query.clone(),
+                prompt,
+            })
+        })
+        .collect()
 }
 
 fn output_path(done_dir: &Path, message: &zebra_core::gmail::GmailMessage) -> Result<PathBuf> {
@@ -230,8 +284,14 @@ fn format_step_log(step: &str, message: &str) -> String {
     format!("[gmail_ai_news] {step}: {message}")
 }
 
-fn format_message_progress(index: usize, total: usize, message_id: &str, subject: &str) -> String {
-    format!("[gmail_ai_news] message {index}/{total} ({message_id}): {subject}")
+fn format_message_progress(
+    index: usize,
+    total: usize,
+    message_id: &str,
+    subject: &str,
+    source_name: &str,
+) -> String {
+    format!("[gmail_ai_news] source {source_name} message {index}/{total} ({message_id}): {subject}")
 }
 
 fn format_output_filename(received_at: &str, message_id: &str) -> String {
@@ -254,7 +314,12 @@ fn received_at(message: &zebra_core::gmail::GmailMessage) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_message_progress, format_output_filename, format_step_log};
+    use super::{
+        format_message_progress, format_output_filename, format_step_log,
+        load_processing_sources,
+    };
+    use std::path::PathBuf;
+    use zebra_core::config::{GmailAiNewsConfig, GmailSourceConfig};
 
     #[test]
     fn formats_step_logs_with_app_prefix() {
@@ -267,8 +332,8 @@ mod tests {
     #[test]
     fn formats_message_progress_with_subject() {
         assert_eq!(
-            format_message_progress(2, 5, "abc123", "Daily AI News"),
-            "[gmail_ai_news] message 2/5 (abc123): Daily AI News"
+            format_message_progress(2, 5, "abc123", "Daily AI News", "ai_news"),
+            "[gmail_ai_news] source ai_news message 2/5 (abc123): Daily AI News"
         );
     }
 
@@ -278,5 +343,58 @@ mod tests {
             format_output_filename("2026-04-08", "19d6a7dfd7177ba0"),
             "2026-04-08-19d6a7dfd7177ba0.md"
         );
+    }
+
+    #[test]
+    fn loads_multiple_processing_sources_with_prompts() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "gmail-ai-news-source-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(temp_dir.join("config/prompts"))
+            .expect("prompt dir should be created");
+        std::fs::write(
+            temp_dir.join("config/prompts/gmail_ai_news_summary.md"),
+            "newsletter prompt",
+        )
+        .expect("newsletter prompt should be written");
+        std::fs::write(
+            temp_dir.join("config/prompts/gmail_podcast_transcript.md"),
+            "transcript prompt",
+        )
+        .expect("transcript prompt should be written");
+
+        let mut config = GmailAiNewsConfig {
+            app_name: "gmail_ai_news".to_string(),
+            workspace_root: "workspace".into(),
+            done_dir: "workspace/done/gmail_ai_news".into(),
+            sources: vec![
+                GmailSourceConfig {
+                    name: "ai_news".to_string(),
+                    gmail_query: "in:inbox from:swyx+ainews@substack.com".to_string(),
+                    prompt_file: PathBuf::from("config/prompts/gmail_ai_news_summary.md"),
+                },
+                GmailSourceConfig {
+                    name: "podcast_transcript".to_string(),
+                    gmail_query: "in:inbox from:swyx@substack.com".to_string(),
+                    prompt_file: PathBuf::from("config/prompts/gmail_podcast_transcript.md"),
+                },
+            ],
+            provider: "openai".to_string(),
+            model: "gpt-5-mini".to_string(),
+            oauth_client_secret_file: "config/gmail/oauth_client_secret.json".into(),
+            oauth_token_cache_file: "config/gmail/oauth_tokens.json".into(),
+            gmail_user_id: "me".to_string(),
+        };
+        config.resolve_relative_paths(&temp_dir);
+
+        let sources = load_processing_sources(&config).expect("processing sources should load");
+        std::fs::remove_dir_all(&temp_dir).expect("temp dir should be removed");
+
+        assert_eq!(sources.len(), 2);
+        assert_eq!(sources[0].name, "ai_news");
+        assert_eq!(sources[0].prompt, "newsletter prompt");
+        assert_eq!(sources[1].name, "podcast_transcript");
+        assert_eq!(sources[1].prompt, "transcript prompt");
     }
 }

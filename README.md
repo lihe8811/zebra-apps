@@ -56,7 +56,9 @@ The intended document front matter fields are:
 The first implemented app is `gmail_ai_news`.
 
 - Config: `config/apps/gmail_ai_news.toml`
-- Prompt draft: `config/prompts/gmail_ai_news_summary.md`
+- Prompt drafts:
+  - `config/prompts/gmail_ai_news_summary.md`
+  - `config/prompts/gmail_podcast_transcript.md`
 - OAuth secret example: `config/gmail/oauth_client_secret.example.json`
 - Output folder: `workspace/done/gmail_ai_news`
 

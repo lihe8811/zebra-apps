@@ -65,11 +65,12 @@ Each app should write completed artifacts into its own subfolder under `workspac
 ## First App: Gmail AI News Summarizer
 
 - add a dedicated app, tentatively named `gmail_ai_news`, that reads Gmail inbox messages from `swyx+ainews@substack.com`
+- extend the same app to also process podcast transcript emails from `swyx@substack.com`
 - use local OAuth on this Mac for Gmail API access
-- search only current inbox messages from that sender
+- search only current inbox messages from configured senders
 - fetch the full MIME message body rather than relying on clipped email snippets
 - summarize the full content with `async-openai`
-- load the summary prompt from a draft file in `config/` so it can be edited later without code changes
+- load sender-specific prompts from draft files in `config/` so they can be edited later without code changes
 - write one markdown output per processed email into `workspace/done/gmail_ai_news`
 - archive each message in Gmail after the summary file is written successfully
 

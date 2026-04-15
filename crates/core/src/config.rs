@@ -26,13 +26,19 @@ pub struct GmailAiNewsConfig {
     pub app_name: String,
     pub workspace_root: PathBuf,
     pub done_dir: PathBuf,
-    pub gmail_query: String,
-    pub prompt_file: PathBuf,
+    pub sources: Vec<GmailSourceConfig>,
     pub provider: String,
     pub model: String,
     pub oauth_client_secret_file: PathBuf,
     pub oauth_token_cache_file: PathBuf,
     pub gmail_user_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct GmailSourceConfig {
+    pub name: String,
+    pub gmail_query: String,
+    pub prompt_file: PathBuf,
 }
 
 impl GmailAiNewsConfig {
@@ -43,11 +49,11 @@ impl GmailAiNewsConfig {
         toml::from_str(&raw).with_context(|| format!("failed to parse config file {}", path.display()))
     }
 
-    pub fn load_prompt(&self) -> Result<String> {
-        fs::read_to_string(&self.prompt_file).with_context(|| {
+    pub fn load_prompt(&self, source: &GmailSourceConfig) -> Result<String> {
+        fs::read_to_string(&source.prompt_file).with_context(|| {
             format!(
                 "failed to read prompt file {}",
-                self.prompt_file.as_path().display()
+                source.prompt_file.as_path().display()
             )
         })
     }
@@ -55,7 +61,9 @@ impl GmailAiNewsConfig {
     pub fn resolve_relative_paths(&mut self, workspace_root: &Path) {
         self.workspace_root = absolutize_path(workspace_root, &self.workspace_root);
         self.done_dir = absolutize_path(workspace_root, &self.done_dir);
-        self.prompt_file = absolutize_path(workspace_root, &self.prompt_file);
+        for source in &mut self.sources {
+            source.prompt_file = absolutize_path(workspace_root, &source.prompt_file);
+        }
         self.oauth_client_secret_file = absolutize_path(workspace_root, &self.oauth_client_secret_file);
         self.oauth_token_cache_file = absolutize_path(workspace_root, &self.oauth_token_cache_file);
     }

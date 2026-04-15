@@ -7,7 +7,9 @@ pub mod workspace;
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{find_workspace_root, load_shared_env_file, GmailAiNewsConfig};
+    use crate::config::{
+        find_workspace_root, load_shared_env_file, GmailAiNewsConfig, GmailSourceConfig,
+    };
     use crate::document::{DocumentFrontMatter, WorkflowDocument};
     use crate::gmail::{
         extract_message_text, GmailHeader, GmailMessage, GmailMessageBody, GmailMessagePart,
@@ -161,8 +163,18 @@ mod tests {
             app_name: "gmail_ai_news".to_string(),
             workspace_root: "workspace".into(),
             done_dir: "workspace/done/gmail_ai_news".into(),
-            gmail_query: "in:inbox".to_string(),
-            prompt_file: "config/prompts/gmail_ai_news_summary.md".into(),
+            sources: vec![
+                GmailSourceConfig {
+                    name: "ai_news".to_string(),
+                    gmail_query: "in:inbox from:swyx+ainews@substack.com".to_string(),
+                    prompt_file: "config/prompts/gmail_ai_news_summary.md".into(),
+                },
+                GmailSourceConfig {
+                    name: "podcast_transcript".to_string(),
+                    gmail_query: "in:inbox from:swyx@substack.com".to_string(),
+                    prompt_file: "config/prompts/gmail_podcast_transcript.md".into(),
+                },
+            ],
             provider: "openai".to_string(),
             model: "gpt-5-mini".to_string(),
             oauth_client_secret_file: "config/gmail/oauth_client_secret.json".into(),
@@ -176,8 +188,12 @@ mod tests {
         assert_eq!(config.workspace_root, root.join("workspace"));
         assert_eq!(config.done_dir, root.join("workspace/done/gmail_ai_news"));
         assert_eq!(
-            config.prompt_file,
+            config.sources[0].prompt_file,
             root.join("config/prompts/gmail_ai_news_summary.md")
+        );
+        assert_eq!(
+            config.sources[1].prompt_file,
+            root.join("config/prompts/gmail_podcast_transcript.md")
         );
         assert_eq!(
             config.oauth_client_secret_file,
