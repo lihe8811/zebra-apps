@@ -60,7 +60,7 @@ The first implemented app is `gmail_ai_news`.
   - `config/prompts/gmail_ai_news_summary.md`
   - `config/prompts/gmail_podcast_transcript.md`
 - OAuth secret example: `config/gmail/oauth_client_secret.example.json`
-- Output folder: `workspace/done/gmail_ai_news`
+- Output folder: `/Users/lihe8811/Documents/Obsidian Vault`
 
 Before running it, create `config/gmail/oauth_client_secret.json` from the example, then set `OPENAI_API_KEY` for `async-openai`.
 The app loads a shared repo `.env` file automatically, so you can put `OPENAI_API_KEY=...` in `/Users/lihe8811/Documents/Code/AI/zebra-apps/.env`.

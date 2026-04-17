@@ -1,6 +1,6 @@
 app_name = "gmail_ai_news"
 workspace_root = "workspace"
-done_dir = "workspace/done/gmail_ai_news"
+done_dir = "/Users/lihe8811/Documents/Obsidian Vault"
 provider = "openai"
 model = "gpt-5-mini"
 oauth_client_secret_file = "config/gmail/oauth_client_secret.json"
